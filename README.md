@@ -49,5 +49,5 @@ npm start
 | POST   | /api/auth/forgotpassword            |
 | PUT    | /api/auth/resetpassword/:resetToken |
 
-#### This API was made with the help of [this](https://www.youtube.com/watch?v=h6fOErvWIGI) YT tutorial, For more details you can always follow it.
+#### This API was made with the help of [this](https://youtu.be/YocRq-KesCM) YT tutorial, For more details you can always follow it.
 #### P.S: Express server here is of type module not commonJS, therefor some syntax might be different.
