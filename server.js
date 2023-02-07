@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config({
-    path: "./config.env"
+  path: "./config.env",
 });
 
 import express from "express";
@@ -16,25 +16,23 @@ connectDB(DB_URI);
 const app = express();
 app.use(express.json());
 
-
 // Serving API Routes
 app.use("/healthcheck", (req, res) => {
-    return res.sendStatus(200);
+  return res.sendStatus(200);
 });
 
 app.use("/api", APIRoutes);
 
-
 // Error Handler (Don't put any middleware after this!)
 app.use(errorHandler);
 
-// Start Listening 
+// Start Listening
 const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
-    console.log(`Server has started on PORT: ${PORT}`);
-})
+  console.log(`Server has started on PORT: ${PORT}`);
+});
 
 process.on("unhandledRejection", (err, promise) => {
-    console.log(`Logged Error: ${err.message}`);
-    server.close(() => process.exit(1));
+  console.log(`Logged Error: ${err.message}`);
+  server.close(() => process.exit(1));
 });
