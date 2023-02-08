@@ -4,31 +4,7 @@
 Express, Mongodb (mongoose), JWT, and nodemailer all combined were used to make this Auth API.
 
 ## Configuration :
-Create a ```config.env``` file in the root directory and fill it with the following information or fill ```config.template.env``` and rename it ```config.env``` :
-
-```
-# Server Listening Port
-PORT=5000
-
-# Database URI
-DB_URI="Your URI Here"
-
-# Frontend URL
-URL=""
-
-# JWT Secret
-
-JWT_SECRET="Your JWT Secret"
-JWT_EXPIRE=60min
-
-# Password Reset Emails
-
-EMAIL_SERVICE=""
-EMAIL_USERNAME=""
-EMAIL_PASSWORD=""
-EMAIL_FROM=""
-
-```
+In the root directory fill the file ```config.env.template``` and rename it ```config.env``` :
 
 ## Quick Start :
 
