@@ -1,4 +1,5 @@
 # Authentication API
+[![Prettier-CI](https://github.com/AssadAnabosi/Auth-API/actions/workflows/Prettier.yml/badge.svg)](https://github.com/AssadAnabosi/Auth-API/actions/workflows/Prettier.yml)
 
 Express, Mongodb (mongoose), JWT, and nodemailer all combined were used to make this Auth API.
 
