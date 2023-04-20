@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-import ResponseError from "../utils/responseError.js";
+import * as statusCode from "../constants/status.constants.js";
 
 export const isLoggedIn = async (req, res, next) => {
   let token;
@@ -9,11 +9,14 @@ export const isLoggedIn = async (req, res, next) => {
     req.headers.authorization &&
     req.headers.authorization.startsWith("Bearer")
   ) {
-    token = req.headers.authorization.split(" ");
+    token = req.headers.authorization.split(" ")[1];
   }
 
   if (!token) {
-    return next(new ResponseError("Not Authorized To Access This Route", 401));
+    return res.status(statusCode.NOT_AUTHENTICATED).json({
+      success: false,
+      message: "Not Authenticated To Access This Route",
+    });
   }
 
   try {
@@ -21,13 +24,20 @@ export const isLoggedIn = async (req, res, next) => {
     const user = await User.findById(decoded.id);
 
     if (!user) {
-      return next(new ResponseError("User Can Not Be Found", 404));
+      return res.status(statusCode.NOT_FOUND).json({
+        success: false,
+        message: "User Can Not Be Found",
+      });
     }
 
     req.user = user;
 
     return next();
   } catch (error) {
-    return next(new ResponseError("Not Authorized To Access This Route", 401));
+    // JWT Expired
+    return res.status(statusCode.NOT_AUTHENTICATED).json({
+      success: false,
+      message: "Not Authenticated To Access This Route",
+    });
   }
 };

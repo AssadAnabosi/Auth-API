@@ -2,6 +2,7 @@ import User from "../models/User.model.js";
 import ResponseError from "../utils/responseError.js";
 import sendEmail from "../utils/sendEmail.js";
 import crypto from "crypto";
+import * as statusCode from "../constants/status.constants.js";
 
 export const register = async (req, res, next) => {
   const { first_name, last_name, username, email, password } = req.body;
@@ -10,7 +11,7 @@ export const register = async (req, res, next) => {
     return next(
       new ResponseError(
         "Please provide first and last names, username, email, and password",
-        400
+        statusCode.BAD_REQUEST
       )
     );
   }
@@ -23,7 +24,7 @@ export const register = async (req, res, next) => {
       email,
       password,
     });
-    return sendToken(user, 201, res);
+    return sendToken(user, statusCode.CREATED, res);
   } catch (error) {
     next(error);
   }
@@ -33,22 +34,22 @@ export const login = async (req, res, next) => {
   const { username, password } = req.body;
   //  making sure that proper fields are provided
   if (!username || !password) {
-    return next(new ResponseError("Please provide an email and password", 400));
+    return next(new ResponseError("Please provide an email and password", statusCode.BAD_REQUEST));
   }
   try {
     const user = await User.findOne({ username }).select("+password");
     // Invalid Username
     if (!user) {
-      return next(new ResponseError("Invalid Credentials", 401));
+      return next(new ResponseError("Invalid Credentials", statusCode.BAD_REQUEST));
     }
     // Password Check
     const isMatch = await user.matchPassword(password);
     //  Wrong Password
     if (!isMatch) {
-      return next(new ResponseError("Invalid Credentials", 401));
+      return next(new ResponseError("Invalid Credentials", statusCode.BAD_REQUEST));
     }
     //  Valid User
-    return sendToken(user, 200, res);
+    return sendToken(user, statusCode.OK, res);
   } catch (error) {
     next(error);
   }
@@ -62,7 +63,7 @@ export const forgotPassword = async (req, res, next) => {
 
     if (!user) {
       // User can't be found, therefor no email will be sent
-      return res.sendStatus(202);
+      return res.sendStatus(statusCode.ACCEPTED);
     }
 
     const resetToken = user.getResetPasswordToken();
@@ -86,13 +87,13 @@ export const forgotPassword = async (req, res, next) => {
         text: message,
       });
       //  User found and an was email sent to user
-      return res.sendStatus(202);
+      return res.sendStatus(statusCode.ACCEPTED);
     } catch (error) {
       user.resetPasswordToken = undefined;
       user.resetPasswordTokenExpire = undefined;
       await User.save();
 
-      return next(new ResponseError("Email could not be sent", 500));
+      return next(new ResponseError("Email could not be sent", statusCode.INTERNAL_SERVER_ERROR));
     }
   } catch (error) {
     next(error);
@@ -111,7 +112,7 @@ export const resetPassword = async (req, res, next) => {
     });
 
     if (!user) {
-      return next(new ResponseError("Invalid Reset Token", 400));
+      return next(new ResponseError("Invalid Reset Token", statusCode.BAD_REQUEST));
     }
 
     user.password = req.body.password;
@@ -119,7 +120,7 @@ export const resetPassword = async (req, res, next) => {
     user.resetPasswordTokenExpire = undefined;
     await user.save();
 
-    return res.status(201).json({
+    return res.status(statusCode.CREATED).json({
       success: true,
       data: "Password Reset Success",
     });

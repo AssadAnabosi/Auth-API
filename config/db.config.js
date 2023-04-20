@@ -7,7 +7,7 @@ const connectDB = async (URI) => {
     useUnifiedTopology: true,
   });
 
-  console.log("Connection to the Database was established successfully!");
+  console.log("Connection to the Database was established successfully 🌍");
 };
 
 export default connectDB;
