@@ -1,5 +1,4 @@
 # Authentication API
-[![Prettier-CI](https://github.com/AssadAnabosi/Auth-API/actions/workflows/Prettier.yml/badge.svg)](https://github.com/AssadAnabosi/Auth-API/actions/workflows/Prettier.yml)
 
 Express, Mongodb (mongoose), JWT, and nodemailer all combined were used to make this Auth API.
 
@@ -21,10 +20,9 @@ npm start
 
 | Method |                                      |
 |--------|--------------------------------------|
+| POST   | /api/auth/login                      |
+| POST   | /api/auth/refresh                    |
 | POST   | /api/auth/register                   |
-| POST   | /api/auth/                           |
 | POST   | /api/auth/forgot-password            |
 | PUT    | /api/auth/reset-password/:resetToken |
-
-#### This API was made with the help of [this](https://youtu.be/YocRq-KesCM) YT tutorial, For more details you can always follow it.
-#### P.S: Express server here is of type module not commonJS, therefor some syntax might be different.
+| POST    | /api/auth/logout                     |
