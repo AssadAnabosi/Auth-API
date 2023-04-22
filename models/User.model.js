@@ -1,9 +1,19 @@
-import mongoose from "mongoose";
+import { USERS } from "../constants/collections.constants.js";
+import { Schema, model } from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import ms from "ms";
+import Session from "./Session.model.js";
 
-const UserSchema = new mongoose.Schema({
+const options = {
+  collection: USERS,
+  timestamps: false,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+};
+
+const UserSchema = new Schema({
   first_name: {
     type: String,
     required: [true, "Please provide a first name"],
@@ -34,7 +44,7 @@ const UserSchema = new mongoose.Schema({
   },
   resetPasswordToken: String,
   resetPasswordTokenExpire: Date,
-});
+}, options);
 
 const capitalizeFirstLetter = (string) => {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -42,6 +52,9 @@ const capitalizeFirstLetter = (string) => {
 
 // Hash password pre-saving
 UserSchema.pre("save", async function (next) {
+  // lowercase username and email
+  this.username = this.username.toLowerCase();
+  this.email = this.email.toLowerCase();
   // if password is NOT modified, then don't hash the hashed value
   if (this.isModified("password")) {
     const salt = await bcrypt.genSalt(10);
@@ -61,17 +74,30 @@ UserSchema.methods.matchPassword = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
 
-UserSchema.methods.getSignedToken = function () {
+UserSchema.methods.getSignedToken = function (time) {
   return jwt.sign(
     {
       id: this._id,
     },
     process.env.JWT_SECRET,
     {
-      expiresIn: process.env.JWT_EXPIRE,
+      expiresIn: time,
     }
   );
 };
+
+UserSchema.methods.getRefreshToken = async function (ip) {
+  const refreshToken = this.getSignedToken(process.env.JWT_REFRESH_TOKEN_EXPIRE);
+  const session = new Session({
+    user: this._id,
+    token: refreshToken,
+    expiresAt: Date.now() + ms(process.env.JWT_REFRESH_TOKEN_EXPIRE),
+    createdByIp: ip,
+  });
+  await session.save();
+  return refreshToken;
+};
+
 
 UserSchema.methods.getResetPasswordToken = function () {
   const resetToken = crypto.randomBytes(32).toString("hex");
@@ -81,13 +107,13 @@ UserSchema.methods.getResetPasswordToken = function () {
     .update(resetToken)
     .digest("hex");
 
-  //  Expiration Time for Token (15min)
-  let time = 15 * (60 * 1000);
+  //  Expiration Time for Reset Password Token (15min)
+  let time = ms("15m");
   this.resetPasswordTokenExpire = Date.now() + time;
 
   return resetToken;
 };
 
-const User = mongoose.model("User", UserSchema);
+const User = model(USERS, UserSchema);
 
 export default User;

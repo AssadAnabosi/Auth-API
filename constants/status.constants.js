@@ -10,7 +10,9 @@ export const NOT_AUTHENTICATED = 401;
 export const NOT_AUTHORIZED = 403;
 export const NOT_FOUND = 404;
 export const METHOD_NOT_ALLOWED = 405;
+export const NOT_ACCEPTABLE = 406;
 export const CONFLICT = 409;
+export const UNPROCESSABLE_ENTITY = 422;
 
 // 5xx Server Error
 export const INTERNAL_SERVER_ERROR = 500;

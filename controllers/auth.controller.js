@@ -1,8 +1,12 @@
 import User from "../models/User.model.js";
+import Session from "../models/Session.model.js";
 import ResponseError from "../utils/responseError.js";
 import sendEmail from "../utils/sendEmail.js";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 import * as statusCode from "../constants/status.constants.js";
+import cookieOptions from "../utils/cookieOptions.js";
+import requestIP from "../utils/ip.js";
 
 export const register = async (req, res, next) => {
   const { first_name, last_name, username, email, password } = req.body;
@@ -24,7 +28,7 @@ export const register = async (req, res, next) => {
       email,
       password,
     });
-    return sendToken(user, statusCode.CREATED, res);
+    return await genRefreshTokenAndSendTokens(user, req, res);
   } catch (error) {
     next(error);
   }
@@ -37,7 +41,8 @@ export const login = async (req, res, next) => {
     return next(new ResponseError("Please provide an email and password", statusCode.BAD_REQUEST));
   }
   try {
-    const user = await User.findOne({ username }).select("+password");
+    // find user by username (lowercase)
+    const user = await User.findOne({ username: username.toLowerCase() }).select("+password");
     // Invalid Username
     if (!user) {
       return next(new ResponseError("Invalid Credentials", statusCode.BAD_REQUEST));
@@ -49,17 +54,68 @@ export const login = async (req, res, next) => {
       return next(new ResponseError("Invalid Credentials", statusCode.BAD_REQUEST));
     }
     //  Valid User
-    return sendToken(user, statusCode.OK, res);
+    return await genRefreshTokenAndSendTokens(user, req, res,);
   } catch (error) {
     next(error);
   }
 };
 
+export const refresh = async (req, res, next) => {
+  const { refreshToken } = req.cookies;
+  //  making sure that proper fields are provided
+  if (!refreshToken) {
+    return res.status(statusCode.UNPROCESSABLE_ENTITY).json({ success: false, message: "You are not Logged In" });
+  }
+  try {
+    //  Verify Refresh Token
+    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    //  Find Session
+    const session = await Session.findOne({ token: refreshToken }).lean();
+    //  Session was deleted - logout already
+    if (!session) {
+      return res.status(statusCode.UNPROCESSABLE_ENTITY).json({ success: false, message: "Invalid Refresh Token" });
+    }
+    //  Find User
+    const user = await User.findById(decoded.id);
+    // User was deleted
+    if (!user) {
+      return res.status(statusCode.UNPROCESSABLE_ENTITY).json({ success: false, message: "Something went wrong" });
+    }
+    //  Valid User
+    return sendTokens(user, res);
+  } catch (error) {
+    // Invalid Refresh Token // Refresh Token Expired
+    return res.status(statusCode.NOT_ACCEPTABLE).json({ success: false, message: "Invalid Refresh Token" });
+  }
+
+};
+
+export const logout = async (req, res, next) => {
+  const { refreshToken } = req.cookies;
+  //  making sure that proper fields are provided
+  if (!refreshToken) {
+    return res.status(statusCode.UNPROCESSABLE_ENTITY).json({ success: false, message: "You are not Logged In" });
+  }
+  try {
+    //  Verify Refresh Token
+    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    //  Find Session
+    await Session.findOneAndDelete({ token: decoded.id });
+    //  Clear Cookies
+    res.clearCookie("refreshToken", cookieOptions());
+  }
+  catch (error) {
+    // Invalid Refresh Token // Refresh Token Expired
+    return res.status(statusCode.NOT_ACCEPTABLE).json({ success: false, message: "Invalid Token" });
+  }
+};
+
+
 export const forgotPassword = async (req, res, next) => {
   const { username } = req.body;
 
   try {
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ username: username.toLowerCase() });
 
     if (!user) {
       // User can't be found, therefor no email will be sent
@@ -119,20 +175,30 @@ export const resetPassword = async (req, res, next) => {
     user.resetPasswordToken = undefined;
     user.resetPasswordTokenExpire = undefined;
     await user.save();
-
+    // force logout all sessions
+    await Session.deleteMany({ user: user._id });
+    res.clearCookie("refreshToken", cookieOptions());
     return res.status(statusCode.CREATED).json({
       success: true,
-      data: "Password Reset Success",
+      message: "Password Reset Success",
     });
   } catch (error) {
     return next(error);
   }
 };
 
-const sendToken = (user, statusCode, res) => {
-  const token = user.getSignedToken();
-  return res.status(statusCode).json({
+//  Helper Functions
+
+const sendTokens = (user, res) => {
+  const accessToken = user.getSignedToken(process.env.JWT_ACCESS_TOKEN_EXPIRE);
+  return res.status(statusCode.OK).json({
     success: true,
-    token,
+    accessToken: accessToken,
   });
+};
+
+const genRefreshTokenAndSendTokens = async (user, req, res) => {
+  const refreshToken = await user.getRefreshToken(requestIP(req));
+  res.cookie("refreshToken", refreshToken, cookieOptions(process.env.JWT_REFRESH_TOKEN_EXPIRE));
+  return sendTokens(user, res);
 };
