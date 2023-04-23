@@ -2,18 +2,19 @@ import { Router } from "express";
 const router = Router();
 
 import * as controller from "../controllers/auth.controller.js";
+import catcher from "../middleware/catcher.middleware.js";
 import limiter from "../middleware/limiter.middleware.js";
 
-router.post("/login", limiter, controller.login);
+router.post("/login", limiter, catcher(controller.login));
 
-router.post("/refresh", controller.refresh);
+router.post("/refresh", catcher(controller.refresh));
 
-router.post("/register", controller.register);
+router.post("/register", catcher(controller.register));
 
-router.post("/forgot-password", controller.forgotPassword);
+router.post("/forgot-password", catcher(controller.forgotPassword));
 
-router.put("/reset-password/:resetToken", controller.resetPassword);
+router.put("/reset-password/:resetToken", catcher(controller.resetPassword));
 
-router.post("/logout", controller.logout);
+router.post("/logout", catcher(controller.logout));
 
 export default router;

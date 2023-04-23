@@ -20,44 +20,38 @@ export const register = async (req, res, next) => {
     );
   }
   //  Register User
-  try {
-    const user = await User.create({
-      first_name,
-      last_name,
-      username,
-      email,
-      password,
-    });
-    return await genRefreshTokenAndSendTokens(user, req, res);
-  } catch (error) {
-    next(error);
-  }
+
+  const user = await User.create({
+    first_name,
+    last_name,
+    username,
+    email,
+    password,
+  });
+  return await genRefreshTokenAndSendTokens(user, req, res);
 };
 
 export const login = async (req, res, next) => {
   const { username, password } = req.body;
   //  making sure that proper fields are provided
   if (!username || !password) {
-    return next(new ResponseError("Please provide an email and password", statusCode.BAD_REQUEST));
+    return res.status(statusCode.BAD_REQUEST).json({ success: false, message: "Please provide an email and password" });
   }
-  try {
-    // find user by username (lowercase)
-    const user = await User.findOne({ username: username.toLowerCase() }).select("+password");
-    // Invalid Username
-    if (!user) {
-      return next(new ResponseError("Invalid Credentials", statusCode.BAD_REQUEST));
-    }
-    // Password Check
-    const isMatch = await user.matchPassword(password);
-    //  Wrong Password
-    if (!isMatch) {
-      return next(new ResponseError("Invalid Credentials", statusCode.BAD_REQUEST));
-    }
-    //  Valid User
-    return await genRefreshTokenAndSendTokens(user, req, res,);
-  } catch (error) {
-    next(error);
+
+  // find user by username (lowercase)
+  const user = await User.findOne({ username: username.toLowerCase() }).select("+password");
+  // Invalid Username
+  if (!user) {
+    return res.status(statusCode.BAD_REQUEST).json({ success: false, message: "Invalid Credentials" });
   }
+  // Password Check
+  const isMatch = await user.matchPassword(password);
+  //  Wrong Password
+  if (!isMatch) {
+    return res.status(statusCode.BAD_REQUEST).json({ success: false, message: "Invalid Credentials" });
+  }
+  //  Valid User
+  return await genRefreshTokenAndSendTokens(user, req, res,);
 };
 
 export const refresh = async (req, res, next) => {
@@ -114,20 +108,19 @@ export const logout = async (req, res, next) => {
 export const forgotPassword = async (req, res, next) => {
   const { username } = req.body;
 
-  try {
-    const user = await User.findOne({ username: username.toLowerCase() });
+  const user = await User.findOne({ username: username.toLowerCase() });
 
-    if (!user) {
-      // User can't be found, therefor no email will be sent
-      return res.sendStatus(statusCode.ACCEPTED);
-    }
+  if (!user) {
+    // User can't be found, therefor no email will be sent
+    return res.sendStatus(statusCode.ACCEPTED);
+  }
 
-    const resetToken = user.getResetPasswordToken();
+  const resetToken = user.getResetPasswordToken();
 
-    await user.save();
+  await user.save();
 
-    const resetURL = `${process.env.URL}/resetpassword/${resetToken}`;
-    const message = `
+  const resetURL = `${process.env.URL}/resetpassword/${resetToken}`;
+  const message = `
             <h3>Hi ${user.first_name},</h3>
             <p>There was a request to change your password!</p>
             <p>If you did not make this request then please ignore this email.</p>
@@ -136,23 +129,19 @@ export const forgotPassword = async (req, res, next) => {
             <p><a href="${resetURL}" clicktracking=off>${resetURL}</a></p>
         `;
 
-    try {
-      await sendEmail({
-        to: user.email,
-        subject: "Password Reset Request",
-        text: message,
-      });
-      //  User found and an was email sent to user
-      return res.sendStatus(statusCode.ACCEPTED);
-    } catch (error) {
-      user.resetPasswordToken = undefined;
-      user.resetPasswordTokenExpire = undefined;
-      await User.save();
-
-      return next(new ResponseError("Email could not be sent", statusCode.INTERNAL_SERVER_ERROR));
-    }
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: "Password Reset Request",
+      text: message,
+    });
+    //  User found and an was email sent to user
+    return res.sendStatus(statusCode.ACCEPTED);
   } catch (error) {
-    next(error);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordTokenExpire = undefined;
+    await User.save();
+    return next(new ResponseError("Email could not be sent", statusCode.INTERNAL_SERVER_ERROR));
   }
 };
 
@@ -161,30 +150,27 @@ export const resetPassword = async (req, res, next) => {
     .createHash("sha256")
     .update(req.params.resetToken)
     .digest("hex");
-  try {
-    const user = await User.findOne({
-      resetPasswordToken,
-      resetPasswordTokenExpire: { $gt: Date.now() },
-    });
 
-    if (!user) {
-      return next(new ResponseError("Invalid Reset Token", statusCode.BAD_REQUEST));
-    }
+  const user = await User.findOne({
+    resetPasswordToken,
+    resetPasswordTokenExpire: { $gt: Date.now() },
+  });
 
-    user.password = req.body.password;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordTokenExpire = undefined;
-    await user.save();
-    // force logout all sessions
-    await Session.deleteMany({ user: user._id });
-    res.clearCookie("refreshToken", cookieOptions());
-    return res.status(statusCode.CREATED).json({
-      success: true,
-      message: "Password Reset Success",
-    });
-  } catch (error) {
-    return next(error);
+  if (!user) {
+    return next(new ResponseError("Invalid Reset Token", statusCode.BAD_REQUEST));
   }
+
+  user.password = req.body.password;
+  user.resetPasswordToken = undefined;
+  user.resetPasswordTokenExpire = undefined;
+  await user.save();
+  // force logout all sessions
+  await Session.deleteMany({ user: user._id });
+  res.clearCookie("refreshToken", cookieOptions());
+  return res.status(statusCode.CREATED).json({
+    success: true,
+    message: "Password Reset Success",
+  });
 };
 
 //  Helper Functions
